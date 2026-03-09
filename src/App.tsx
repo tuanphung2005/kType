@@ -39,7 +39,7 @@ function clampDraftToFirstMismatch(target: string, draft: string) {
 
   for (let index = 0; index < draftChars.length; index += 1) {
     if (draftChars[index] !== targetChars[index]) {
-      return draftChars.slice(0, index + 1).join("")
+      return draftChars.slice(0, index).join("")
     }
   }
 
@@ -63,11 +63,13 @@ function App() {
   const captureInputRef = React.useRef<HTMLInputElement>(null)
   const lessonRequestIdRef = React.useRef(0)
   const initialLessonIdRef = React.useRef<string | null>(null)
+  const wrongInputTimeoutRef = React.useRef<number | null>(null)
   const [profile, setProfile] = React.useState(loadProfile)
   const [currentLesson, setCurrentLesson] = React.useState(() => createGeneratedLesson())
   const [rawDraft, setRawDraft] = React.useState("")
   const [isCaptureActive, setIsCaptureActive] = React.useState(false)
   const [isLoadingLesson, setIsLoadingLesson] = React.useState(false)
+  const [showWrongInputIndicator, setShowWrongInputIndicator] = React.useState(false)
 
   const inputMode = containsHangul(rawDraft) ? "hangul" as const : "keys" as const
   const typedDraft =
@@ -97,6 +99,14 @@ function App() {
     saveProfile(profile)
   }, [profile])
 
+  React.useEffect(() => {
+    return () => {
+      if (wrongInputTimeoutRef.current !== null) {
+        window.clearTimeout(wrongInputTimeoutRef.current)
+      }
+    }
+  }, [])
+
   const loadNextLesson = React.useEffectEvent(async (previousId?: string) => {
     const requestId = lessonRequestIdRef.current + 1
     lessonRequestIdRef.current = requestId
@@ -120,6 +130,19 @@ function App() {
     captureInputRef.current?.focus()
   })
 
+  const triggerWrongInputIndicator = React.useEffectEvent(() => {
+    setShowWrongInputIndicator(true)
+
+    if (wrongInputTimeoutRef.current !== null) {
+      window.clearTimeout(wrongInputTimeoutRef.current)
+    }
+
+    wrongInputTimeoutRef.current = window.setTimeout(() => {
+      setShowWrongInputIndicator(false)
+      wrongInputTimeoutRef.current = null
+    }, 900)
+  })
+
   const handleDraftChange = React.useEffectEvent((nextRawDraft: string) => {
     const nextInputMode = containsHangul(nextRawDraft) ? "hangul" : "keys"
     const comparisonTarget = nextInputMode === "keys" ? targetKeyGuide : currentLesson.text
@@ -137,6 +160,14 @@ function App() {
     const maxAllowedLength = nextCommittedPrefixLength + 1
     if (getCharacterLength(constrainedDraft) > maxAllowedLength) {
       constrainedDraft = sliceCharacters(constrainedDraft, maxAllowedLength)
+    }
+
+    const wasRejected =
+      getCharacterLength(nextRawDraft) >= getCharacterLength(rawDraft) &&
+      constrainedDraft !== nextRawDraft
+
+    if (wasRejected) {
+      triggerWrongInputIndicator()
     }
 
     setRawDraft(constrainedDraft)
@@ -166,6 +197,7 @@ function App() {
 
     setProfile(nextProfile)
     setRawDraft("")
+    setShowWrongInputIndicator(false)
 
     if (isComplete) {
       void loadNextLesson(currentLesson.id)
@@ -242,6 +274,7 @@ function App() {
 
   function handleNextLesson() {
     setRawDraft("")
+    setShowWrongInputIndicator(false)
     void loadNextLesson(currentLesson.id)
 
     requestAnimationFrame(() => {
@@ -261,6 +294,7 @@ function App() {
     clearProfile()
     setProfile(createInitialProfile())
     setRawDraft("")
+    setShowWrongInputIndicator(false)
 
     requestAnimationFrame(() => {
       focusCapture()
@@ -312,6 +346,7 @@ function App() {
             potentialXp={potentialXp}
             isComplete={isComplete}
             hasInputMismatch={hasInputMismatch}
+            showWrongInputIndicator={showWrongInputIndicator}
             targetKeyGuide={targetKeyGuide}
             onActivateCapture={focusCapture}
             onCaptureBlur={() => setIsCaptureActive(false)}
@@ -319,6 +354,7 @@ function App() {
             onChange={handleDraftChange}
             onClear={() => {
               setRawDraft("")
+              setShowWrongInputIndicator(false)
               requestAnimationFrame(() => {
                 focusCapture()
               })

@@ -86,11 +86,11 @@ function KeyboardReference({ activeKey, dimmed }: { activeKey: string | null; di
                 <div
                   key={`kb-key-${item.key}`}
                   className={cn(
-                    "relative flex h-13 min-w-[3.15rem] items-start justify-between overflow-hidden rounded-[0.9rem] border px-2.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_14px_24px_rgba(0,0,0,0.42)] transition-all sm:h-15 sm:min-w-[3.55rem] sm:px-3",
-                    "border-white/7 bg-[linear-gradient(180deg,rgba(33,37,45,0.98),rgba(14,16,22,1))]",
+                    "relative flex h-13 min-w-[3.15rem] items-start justify-between rounded-[0.9rem] border px-2.5 py-2.5 shadow-[0_14px_24px_rgba(0,0,0,0.42),0_1px_0_rgba(255,255,255,0.04)] transition-all sm:h-15 sm:min-w-[3.55rem] sm:px-3",
+                    "border-white/7 bg-[linear-gradient(180deg,rgba(41,46,56,0.98),rgba(18,21,28,1))]",
                     item.widthClass,
                     item.muted && "text-white/32",
-                    isActive && "-translate-y-0.5 border-[#5b8cff] bg-[linear-gradient(180deg,rgba(49,101,255,0.98),rgba(22,61,168,1))] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_0_28px_rgba(53,104,255,0.45),0_16px_28px_rgba(8,19,54,0.55)]"
+                    isActive && "-translate-y-0.5 border-[#5b8cff] bg-[linear-gradient(180deg,rgba(49,101,255,0.98),rgba(22,61,168,1))] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_0_28px_rgba(53,104,255,0.45),0_18px_30px_rgba(8,19,54,0.55)]"
                   )}
                 >
                   <span className="text-[1.45rem] font-semibold leading-none tracking-[-0.03em] sm:text-[1.7rem]">
@@ -99,8 +99,6 @@ function KeyboardReference({ activeKey, dimmed }: { activeKey: string | null; di
                   <span className={cn("text-[10px] font-medium uppercase leading-none text-white/42 sm:text-[11px]", isActive && "text-white/80")}>
                     {item.key}
                   </span>
-                  <span className="pointer-events-none absolute inset-x-3 top-1.5 h-px bg-white/10" />
-                  <span className="pointer-events-none absolute inset-x-2 bottom-0 h-4 rounded-b-[0.8rem] bg-[linear-gradient(180deg,transparent,rgba(0,0,0,0.28))]" />
                 </div>
               )
             })}
@@ -124,6 +122,7 @@ type PracticePanelProps = {
   potentialXp: number
   isComplete: boolean
   hasInputMismatch: boolean
+  showWrongInputIndicator: boolean
   targetKeyGuide: string
   onActivateCapture: () => void
   onCaptureBlur: () => void
@@ -146,6 +145,7 @@ export function PracticePanel({
   potentialXp,
   isComplete,
   hasInputMismatch,
+  showWrongInputIndicator,
   targetKeyGuide,
   onActivateCapture,
   onCaptureBlur,
@@ -168,8 +168,10 @@ export function PracticePanel({
   const showActiveGuide = Boolean(activeSyllable && activeSyllable.character !== " ")
   const activeGuideMessage = !showActiveGuide
     ? "Keep typing to see the current syllable guidance."
-    : hasInputMismatch
-      ? "Wrong input detected. Press Backspace once to continue."
+    : showWrongInputIndicator
+      ? "Wrong key."
+      : hasInputMismatch
+        ? "Wrong input is ignored. Keep pressing the highlighted key."
       : nextPendingStroke
         ? `Next stroke: ${nextPendingStroke.jamo}`
         : activeSyllable.jamo.some((item) => item.state === "incorrect")
@@ -209,7 +211,7 @@ export function PracticePanel({
       {/* Main typing area */}
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-4 py-6 sm:px-8">
         <p className="text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
-          {isCaptureActive ? "typing" : "click or press any key to start"} · {lesson.translation}
+          {lesson.translation}
         </p>
 
         {/* Phrase display — active character highlight only */}
@@ -275,9 +277,12 @@ export function PracticePanel({
         >
           <div className="flex items-center justify-between gap-3">
             <p className="text-[11px] tracking-[0.18em] text-muted-foreground uppercase">current syllable</p>
-            <p className="text-[11px] text-muted-foreground">
-              {completedStrokeCount}/{totalStrokeCount} strokes correct
-            </p>
+            <div className="flex items-center gap-2">
+              {showWrongInputIndicator ? <span className="text-[11px] text-destructive">Wrong key</span> : null}
+              <p className="text-[11px] text-muted-foreground">
+                {completedStrokeCount}/{totalStrokeCount} strokes correct
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-card text-2xl sm:h-14 sm:w-14 sm:text-3xl">
@@ -314,7 +319,7 @@ export function PracticePanel({
           <div className="flex w-full max-w-2xl items-center justify-between gap-3 px-1">
             <p className="text-[11px] text-muted-foreground">
               {hasInputMismatch
-                ? "wrong key entered"
+                ? "wrong keys are ignored"
                 : inputMode === "keys"
                   ? nextExpectedKey
                     ? ``
