@@ -4,6 +4,7 @@ import { Flame, RotateCcw, Shuffle } from "lucide-react"
 import { PracticePanel } from "@/components/practice-panel"
 import { Button } from "@/components/ui/button"
 import { createGeneratedLesson } from "@/data/lessons"
+import { fetchDictionaryLesson } from "@/lib/dictionary"
 import {
   clearProfile,
   createInitialProfile,
@@ -26,10 +27,12 @@ import {
 
 function App() {
   const captureInputRef = React.useRef<HTMLInputElement>(null)
+  const lessonRequestIdRef = React.useRef(0)
   const [profile, setProfile] = React.useState(loadProfile)
   const [currentLesson, setCurrentLesson] = React.useState(() => createGeneratedLesson())
   const [rawDraft, setRawDraft] = React.useState("")
   const [isCaptureActive, setIsCaptureActive] = React.useState(false)
+  const [isLoadingLesson, setIsLoadingLesson] = React.useState(false)
 
   const inputMode = containsHangul(rawDraft) ? "hangul" as const : "keys" as const
   const typedDraft =
@@ -51,6 +54,25 @@ function App() {
   React.useEffect(() => {
     saveProfile(profile)
   }, [profile])
+
+  const loadNextLesson = React.useEffectEvent(async (previousId?: string) => {
+    const requestId = lessonRequestIdRef.current + 1
+    lessonRequestIdRef.current = requestId
+    setIsLoadingLesson(true)
+
+    try {
+      const nextLesson = await fetchDictionaryLesson(previousId)
+      if (lessonRequestIdRef.current !== requestId) {
+        return
+      }
+
+      setCurrentLesson(nextLesson ?? createGeneratedLesson(previousId))
+    } finally {
+      if (lessonRequestIdRef.current === requestId) {
+        setIsLoadingLesson(false)
+      }
+    }
+  })
 
   const focusCapture = React.useEffectEvent(() => {
     captureInputRef.current?.focus()
@@ -82,13 +104,17 @@ function App() {
     setRawDraft("")
 
     if (isComplete) {
-      setCurrentLesson((previousLesson) => createGeneratedLesson(previousLesson.id))
+      void loadNextLesson(currentLesson.id)
     }
 
     requestAnimationFrame(() => {
       focusCapture()
     })
   })
+
+  React.useEffect(() => {
+    void loadNextLesson(currentLesson.id)
+  }, [])
 
   React.useEffect(() => {
     focusCapture()
@@ -151,8 +177,8 @@ function App() {
   }, [])
 
   function handleNextLesson() {
-    setCurrentLesson((previousLesson) => createGeneratedLesson(previousLesson.id))
     setRawDraft("")
+    void loadNextLesson(currentLesson.id)
 
     requestAnimationFrame(() => {
       focusCapture()
@@ -191,9 +217,15 @@ function App() {
             </span>
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" className="h-7 rounded-full px-2 text-xs" onClick={handleNextLesson}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 rounded-full px-2 text-xs"
+              onClick={handleNextLesson}
+              disabled={isLoadingLesson}
+            >
               <Shuffle className="size-3" />
-              New
+              {isLoadingLesson ? "Loading" : "New"}
             </Button>
             <Button variant="ghost" size="sm" className="h-7 rounded-full px-2 text-xs" onClick={handleResetProgress}>
               <RotateCcw className="size-3" />

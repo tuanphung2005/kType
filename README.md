@@ -19,3 +19,13 @@ To use the components in your app, import them as follows:
 ```tsx
 import { Button } from "@/components/ui/button"
 ```
+
+## Lesson Source
+
+The app now ships with a large built-in Korean lesson pool and local phrase generator.
+
+- no API key required
+- works offline
+- includes a broad mix of standalone vocabulary and generated sentence patterns
+
+Lessons are shuffled and cached in-session to reduce repetition while keeping the pool large.
