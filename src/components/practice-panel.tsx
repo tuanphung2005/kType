@@ -134,7 +134,6 @@ type PracticePanelProps = {
 
 export function PracticePanel({
   captureRef,
-  isCaptureActive,
   lesson,
   inputValue,
   typedValue,
@@ -172,11 +171,11 @@ export function PracticePanel({
       ? "Wrong key."
       : hasInputMismatch
         ? "Wrong input is ignored. Keep pressing the highlighted key."
-      : nextPendingStroke
-        ? `Next stroke: ${nextPendingStroke.jamo}`
-        : activeSyllable.jamo.some((item) => item.state === "incorrect")
-          ? "Current syllable has an incorrect stroke. Fix it before moving on."
-          : "Current syllable complete."
+        : nextPendingStroke
+          ? `Next stroke: ${nextPendingStroke.jamo}`
+          : activeSyllable.jamo.some((item) => item.state === "incorrect")
+            ? "Current syllable has an incorrect stroke. Fix it before moving on."
+            : "Current syllable complete."
   const nextExpectedKey = inputMode === "keys" ? getNextExpectedKey(targetKeyGuide, inputValue) : null
 
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
