@@ -25,9 +25,44 @@ import {
   containsHangul,
 } from "@/lib/typing"
 
+function getCharacterLength(value: string) {
+  return Array.from(value).length
+}
+
+function sliceCharacters(value: string, length: number) {
+  return Array.from(value).slice(0, length).join("")
+}
+
+function clampDraftToFirstMismatch(target: string, draft: string) {
+  const targetChars = Array.from(target)
+  const draftChars = Array.from(draft)
+
+  for (let index = 0; index < draftChars.length; index += 1) {
+    if (draftChars[index] !== targetChars[index]) {
+      return draftChars.slice(0, index + 1).join("")
+    }
+  }
+
+  return draft
+}
+
+function getCorrectPrefixLength(target: string, draft: string) {
+  const targetChars = Array.from(target)
+  const draftChars = Array.from(draft)
+  const maxLength = Math.min(targetChars.length, draftChars.length)
+
+  let index = 0
+  while (index < maxLength && targetChars[index] === draftChars[index]) {
+    index += 1
+  }
+
+  return index
+}
+
 function App() {
   const captureInputRef = React.useRef<HTMLInputElement>(null)
   const lessonRequestIdRef = React.useRef(0)
+  const initialLessonIdRef = React.useRef<string | null>(null)
   const [profile, setProfile] = React.useState(loadProfile)
   const [currentLesson, setCurrentLesson] = React.useState(() => createGeneratedLesson())
   const [rawDraft, setRawDraft] = React.useState("")
@@ -50,6 +85,13 @@ function App() {
   })
   const level = getLevelDetails(profile.xp)
   const targetKeyGuide = getDubeolsikKeySequence(currentLesson.text)
+  const comparisonTarget = inputMode === "keys" ? targetKeyGuide : currentLesson.text
+  const committedPrefixLength = getCorrectPrefixLength(comparisonTarget, rawDraft)
+  const hasInputMismatch = getCharacterLength(rawDraft) > committedPrefixLength
+
+  if (initialLessonIdRef.current === null) {
+    initialLessonIdRef.current = currentLesson.id
+  }
 
   React.useEffect(() => {
     saveProfile(profile)
@@ -76,6 +118,28 @@ function App() {
 
   const focusCapture = React.useEffectEvent(() => {
     captureInputRef.current?.focus()
+  })
+
+  const handleDraftChange = React.useEffectEvent((nextRawDraft: string) => {
+    const nextInputMode = containsHangul(nextRawDraft) ? "hangul" : "keys"
+    const comparisonTarget = nextInputMode === "keys" ? targetKeyGuide : currentLesson.text
+    const previousCommittedPrefixLength = getCorrectPrefixLength(comparisonTarget, rawDraft)
+
+    let constrainedDraft = nextRawDraft
+
+    if (getCharacterLength(constrainedDraft) < previousCommittedPrefixLength) {
+      constrainedDraft = sliceCharacters(rawDraft, previousCommittedPrefixLength)
+    }
+
+    constrainedDraft = clampDraftToFirstMismatch(comparisonTarget, constrainedDraft)
+
+    const nextCommittedPrefixLength = getCorrectPrefixLength(comparisonTarget, constrainedDraft)
+    const maxAllowedLength = nextCommittedPrefixLength + 1
+    if (getCharacterLength(constrainedDraft) > maxAllowedLength) {
+      constrainedDraft = sliceCharacters(constrainedDraft, maxAllowedLength)
+    }
+
+    setRawDraft(constrainedDraft)
   })
 
   const handleSubmit = React.useEffectEvent(() => {
@@ -113,7 +177,7 @@ function App() {
   })
 
   React.useEffect(() => {
-    void loadNextLesson(currentLesson.id)
+    void loadNextLesson(initialLessonIdRef.current ?? undefined)
   }, [])
 
   React.useEffect(() => {
@@ -247,11 +311,12 @@ function App() {
             feedback={jamoFeedback}
             potentialXp={potentialXp}
             isComplete={isComplete}
+            hasInputMismatch={hasInputMismatch}
             targetKeyGuide={targetKeyGuide}
             onActivateCapture={focusCapture}
             onCaptureBlur={() => setIsCaptureActive(false)}
             onCaptureFocus={() => setIsCaptureActive(true)}
-            onChange={setRawDraft}
+            onChange={handleDraftChange}
             onClear={() => {
               setRawDraft("")
               requestAnimationFrame(() => {

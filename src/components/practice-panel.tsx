@@ -123,6 +123,7 @@ type PracticePanelProps = {
   feedback: SyllableFeedback[]
   potentialXp: number
   isComplete: boolean
+  hasInputMismatch: boolean
   targetKeyGuide: string
   onActivateCapture: () => void
   onCaptureBlur: () => void
@@ -144,6 +145,7 @@ export function PracticePanel({
   feedback,
   potentialXp,
   isComplete,
+  hasInputMismatch,
   targetKeyGuide,
   onActivateCapture,
   onCaptureBlur,
@@ -152,7 +154,6 @@ export function PracticePanel({
   onClear,
   onSubmit,
 }: PracticePanelProps) {
-  const typedLength = Array.from(typedValue).length
   const activeSyllableIndex = feedback.findIndex((syllable) =>
     syllable.jamo.some((item) => item.state !== "correct")
   )
@@ -167,6 +168,8 @@ export function PracticePanel({
   const showActiveGuide = Boolean(activeSyllable && activeSyllable.character !== " ")
   const activeGuideMessage = !showActiveGuide
     ? "Keep typing to see the current syllable guidance."
+    : hasInputMismatch
+      ? "Wrong input detected. Press Backspace once to continue."
     : nextPendingStroke
       ? `Next stroke: ${nextPendingStroke.jamo}`
       : activeSyllable.jamo.some((item) => item.state === "incorrect")
@@ -209,10 +212,10 @@ export function PracticePanel({
           {isCaptureActive ? "typing" : "click or press any key to start"} · {lesson.translation}
         </p>
 
-        {/* Phrase display — composed syllables with readable stroke progress */}
+        {/* Phrase display — active character highlight only */}
         <div className="flex max-w-4xl flex-wrap items-end justify-center gap-x-1.5 gap-y-3">
           {feedback.map((syllable, syllableIndex) => {
-            const isActiveSyllable = syllableIndex === typedLength
+            const isActiveSyllable = syllableIndex === resolvedActiveSyllableIndex
             const isSpace = syllable.character === " "
             const allCorrect = syllable.jamo.every((j) => j.state === "correct")
             const anyIncorrect = syllable.jamo.some((j) => j.state === "incorrect")
@@ -240,40 +243,24 @@ export function PracticePanel({
               <span
                 key={`syl-${syllableIndex}`}
                 className={cn(
-                  "inline-flex flex-col items-center gap-1 rounded-lg border px-2 py-1.5 transition-colors",
-                  isActiveSyllable && "border-primary/40 bg-primary/8",
+                  "inline-flex items-center justify-center rounded-lg border px-2.5 py-2 transition-colors",
+                  isActiveSyllable && "border-primary/45 bg-primary/10 shadow-[0_0_0_1px_color-mix(in_oklch,var(--color-primary)_18%,transparent)]",
                   !isActiveSyllable && allCorrect && "border-primary/15 bg-primary/5",
                   !isActiveSyllable && anyIncorrect && "border-destructive/20 bg-destructive/5",
                   !isActiveSyllable && allPending && "border-transparent",
                 )}
               >
-                {/* Composed syllable character */}
                 <span
                   className={cn(
                     "text-2xl leading-none transition-colors sm:text-3xl",
-                    allCorrect && "text-foreground",
+                    isActiveSyllable && "text-foreground",
+                    allCorrect && !isActiveSyllable && "text-foreground",
                     anyIncorrect && "text-destructive",
                     !allCorrect && !anyIncorrect && !allPending && "text-foreground/70",
                     allPending && "text-muted-foreground/35",
                   )}
                 >
                   {syllable.character}
-                </span>
-                {/* Stroke progress chips */}
-                <span className="flex flex-wrap justify-center gap-1">
-                  {syllable.jamo.map((item, jamoIndex) => (
-                    <span
-                      key={`dot-${jamoIndex}`}
-                      className={cn(
-                        "inline-flex min-w-4 items-center justify-center rounded-full border px-1 py-0.5 text-[9px] leading-none transition-colors",
-                        item.state === "correct" && "border-primary/25 bg-primary/10 text-primary",
-                        item.state === "incorrect" && "border-destructive/30 bg-destructive/10 text-destructive",
-                        item.state === "pending" && "border-border/50 bg-background/70 text-muted-foreground/55",
-                      )}
-                    >
-                      {item.jamo}
-                    </span>
-                  ))}
                 </span>
               </span>
             )
@@ -326,7 +313,9 @@ export function PracticePanel({
         <div className="flex w-full flex-col items-center gap-2">
           <div className="flex w-full max-w-2xl items-center justify-between gap-3 px-1">
             <p className="text-[11px] text-muted-foreground">
-              {inputMode === "keys"
+              {hasInputMismatch
+                ? "wrong key entered"
+                : inputMode === "keys"
                 ? nextExpectedKey
                   ? ``
                   : ""

@@ -515,11 +515,20 @@ export function buildJamoFeedback(target: string, input: string): SyllableFeedba
   const targetChars = Array.from(target)
   const inputChars = Array.from(input)
   const result: SyllableFeedback[] = []
+  let isLockedOnMistake = false
 
   for (let charIndex = 0; charIndex < targetChars.length; charIndex += 1) {
     const targetChar = targetChars[charIndex]
     const typedChar = inputChars[charIndex]
     const targetJamo = decomposeCharToJamo(targetChar)
+
+    if (isLockedOnMistake) {
+      result.push({
+        character: targetChar,
+        jamo: targetJamo.map((j) => ({ jamo: j, state: "pending" })),
+      })
+      continue
+    }
 
     // Not yet reached this character
     if (charIndex >= inputChars.length) {
@@ -556,6 +565,10 @@ export function buildJamoFeedback(target: string, input: string): SyllableFeedba
     }
 
     result.push({ character: targetChar, jamo: jamoItems })
+
+    if (jamoItems.some((item) => item.state === "incorrect")) {
+      isLockedOnMistake = true
+    }
   }
 
   return result
