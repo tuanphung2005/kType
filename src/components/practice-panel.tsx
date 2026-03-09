@@ -170,11 +170,11 @@ export function PracticePanel({
     ? "Keep typing to see the current syllable guidance."
     : hasInputMismatch
       ? "Wrong input detected. Press Backspace once to continue."
-    : nextPendingStroke
-      ? `Next stroke: ${nextPendingStroke.jamo}`
-      : activeSyllable.jamo.some((item) => item.state === "incorrect")
-        ? "Current syllable has an incorrect stroke. Fix it before moving on."
-        : "Current syllable complete."
+      : nextPendingStroke
+        ? `Next stroke: ${nextPendingStroke.jamo}`
+        : activeSyllable.jamo.some((item) => item.state === "incorrect")
+          ? "Current syllable has an incorrect stroke. Fix it before moving on."
+          : "Current syllable complete."
   const nextExpectedKey = inputMode === "keys" ? getNextExpectedKey(targetKeyGuide, inputValue) : null
 
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
@@ -316,10 +316,10 @@ export function PracticePanel({
               {hasInputMismatch
                 ? "wrong key entered"
                 : inputMode === "keys"
-                ? nextExpectedKey
-                  ? ``
-                  : ""
-                : "keyboard hint disabled while Hangul IME input is active"}
+                  ? nextExpectedKey
+                    ? ``
+                    : ""
+                  : "keyboard hint disabled while Hangul IME input is active"}
             </p>
           </div>
           <KeyboardReference activeKey={nextExpectedKey} dimmed={inputMode !== "keys"} />
