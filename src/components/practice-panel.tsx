@@ -9,22 +9,23 @@ import { cn } from "@/lib/utils"
 type KeyboardKey = {
   key: string
   hangul?: string
+  shiftHangul?: string
   widthClass?: string
   muted?: boolean
 }
 
 const KEYBOARD_ROWS: KeyboardKey[][] = [
   [
-    { key: "q", hangul: "ㅂ" },
-    { key: "w", hangul: "ㅈ" },
-    { key: "e", hangul: "ㄷ" },
-    { key: "r", hangul: "ㄱ" },
-    { key: "t", hangul: "ㅅ" },
+    { key: "q", hangul: "ㅂ", shiftHangul: "ㅃ" },
+    { key: "w", hangul: "ㅈ", shiftHangul: "ㅉ" },
+    { key: "e", hangul: "ㄷ", shiftHangul: "ㄸ" },
+    { key: "r", hangul: "ㄱ", shiftHangul: "ㄲ" },
+    { key: "t", hangul: "ㅅ", shiftHangul: "ㅆ" },
     { key: "y", hangul: "ㅛ" },
     { key: "u", hangul: "ㅕ" },
     { key: "i", hangul: "ㅑ" },
-    { key: "o", hangul: "ㅐ" },
-    { key: "p", hangul: "ㅔ" },
+    { key: "o", hangul: "ㅐ", shiftHangul: "ㅒ" },
+    { key: "p", hangul: "ㅔ", shiftHangul: "ㅖ" },
   ],
   [
     { key: "a", hangul: "ㅁ" },
@@ -65,38 +66,44 @@ function KeyboardReference({ activeKey, dimmed }: { activeKey: string | null; di
   return (
     <div
       className={cn(
-        "w-full max-w-2xl rounded-[2.25rem] border border-white/6 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.1),transparent_34%),linear-gradient(180deg,rgba(13,16,22,0.98),rgba(3,5,8,1))] px-4 py-5 text-white shadow-[0_40px_90px_rgba(0,0,0,0.62)] transition-opacity transform-[perspective(1200px)_rotateX(18deg)] sm:px-6 sm:py-6",
-        dimmed && "opacity-70"
+        "w-full max-w-2xl px-2 py-4 transition-opacity sm:px-4 sm:py-6",
+        dimmed && "opacity-40"
       )}
     >
-      <div className="flex flex-col gap-2.5">
+      <div className="flex flex-col gap-2 sm:gap-2.5">
         {KEYBOARD_ROWS.map((row, rowIndex) => (
           <div
             key={`kb-row-${rowIndex}`}
             className={cn(
-              "flex justify-center gap-1.5 sm:gap-2",
-              rowIndex === 1 && "pl-3 sm:pl-5",
-              rowIndex === 2 && "pl-8 sm:pl-11"
+              "flex justify-center gap-2 sm:gap-2.5",
+              rowIndex === 1 && "pl-4 sm:pl-6",
+              rowIndex === 2 && "pl-10 sm:pl-12"
             )}
           >
             {row.map((item) => {
               const isActive = Boolean(activeKey) && activeKey?.toLowerCase() === item.key.toLowerCase()
+              const isShiftRequired = isActive && activeKey !== activeKey?.toLowerCase()
 
               return (
                 <div
                   key={`kb-key-${item.key}`}
                   className={cn(
-                    "relative flex h-13 min-w-[3.15rem] items-start justify-between rounded-[0.9rem] border px-2.5 py-2.5 shadow-[0_14px_24px_rgba(0,0,0,0.42),0_1px_0_rgba(255,255,255,0.04)] transition-all sm:h-15 sm:min-w-[3.55rem] sm:px-3",
-                    "border-white/7 bg-[linear-gradient(180deg,rgba(41,46,56,0.98),rgba(18,21,28,1))]",
+                    "relative flex h-12 min-w-[2.75rem] items-center justify-center rounded-lg transition-colors duration-200 sm:h-14 sm:min-w-[3.25rem] sm:rounded-xl",
+                    "bg-muted/50",
                     item.widthClass,
-                    item.muted && "text-white/32",
-                    isActive && "-translate-y-0.5 border-[#5b8cff] bg-[linear-gradient(180deg,rgba(49,101,255,0.98),rgba(22,61,168,1))] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_0_28px_rgba(53,104,255,0.45),0_18px_30px_rgba(8,19,54,0.55)]"
+                    item.muted && "opacity-30",
+                    isActive && !isShiftRequired && "bg-primary",
+                    isShiftRequired && "bg-foreground text-background"
                   )}
                 >
-                  <span className="text-[1.45rem] font-semibold leading-none tracking-[-0.03em] sm:text-[1.7rem]">
-                    {item.hangul ?? item.key}
+                  <span className={cn("text-xl font-medium sm:text-[1.6rem]", isActive ? (isShiftRequired ? "text-background" : "text-primary-foreground") : "text-foreground/80")}>
+                    {isShiftRequired && item.shiftHangul ? item.shiftHangul : (item.hangul ?? item.key)}
                   </span>
-                  <span className={cn("text-[10px] font-medium uppercase leading-none text-white/42 sm:text-[11px]", isActive && "text-white/80")}>
+                  <span className={cn(
+                    "absolute bottom-1.25 right-1.5 flex items-center gap-0.5 text-[0.65rem] font-medium uppercase leading-none sm:bottom-2 sm:right-2 sm:text-[0.7rem]",
+                    isActive ? (isShiftRequired ? "text-background/80" : "text-primary-foreground/70") : "text-muted-foreground/70"
+                  )}>
+                    {isShiftRequired && <span className="font-bold">⇧</span>}
                     {item.key}
                   </span>
                 </div>
