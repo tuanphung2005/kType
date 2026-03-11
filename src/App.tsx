@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Flame, Shuffle, Download } from "lucide-react"
+import { Flame, Shuffle, Download, ChartArea, ArrowLeft } from "lucide-react"
 
 import { AnalyticsPanel } from "@/components/analytics-panel"
 import { PracticePanel } from "@/components/practice-panel"
@@ -334,7 +334,10 @@ function App() {
                 className="h-7 rounded-full px-3 text-xs"
                 onClick={() => setCurrentView(v => v === "practice" ? "analytics" : "practice")}
               >
-                {currentView === "practice" ? "analytics" : "back to practice"}
+                {currentView === "practice" ?
+                  (<><ChartArea />analytics</>) :
+                  (<><ArrowLeft />back to practice</>)
+                }
               </Button>
             ) : (
               <Button

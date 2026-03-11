@@ -31,7 +31,7 @@ export function AnalyticsPanel({ profile }: { profile: AppProfile }) {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         <Card className="bg-background/50">
           <CardHeader className="p-3 pb-1 sm:p-4 sm:pb-2">
-            <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">Avg WPM</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground tracking-wider">avg wpm</CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0 sm:p-4 sm:pt-0 text-2xl font-semibold sm:text-3xl">
             {avgWpm}
@@ -39,7 +39,7 @@ export function AnalyticsPanel({ profile }: { profile: AppProfile }) {
         </Card>
         <Card className="bg-background/50">
           <CardHeader className="p-3 pb-1 sm:p-4 sm:pb-2">
-            <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">Avg Accuracy</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground tracking-wider">avg accuracy</CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0 sm:p-4 sm:pt-0 text-2xl font-semibold sm:text-3xl">
             {avgAcc}%
@@ -47,7 +47,7 @@ export function AnalyticsPanel({ profile }: { profile: AppProfile }) {
         </Card>
         <Card className="bg-background/50">
           <CardHeader className="p-3 pb-1 sm:p-4 sm:pb-2">
-            <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">Current Streak</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground tracking-wider">current streak</CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0 sm:p-4 sm:pt-0 text-2xl font-semibold sm:text-3xl text-primary">
             {profile.streak}
@@ -56,7 +56,7 @@ export function AnalyticsPanel({ profile }: { profile: AppProfile }) {
         </Card>
         <Card className="bg-background/50">
           <CardHeader className="p-3 pb-1 sm:p-4 sm:pb-2">
-            <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">Max Streak</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground tracking-wider">max streak</CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0 sm:p-4 sm:pt-0 text-2xl font-semibold sm:text-3xl">
             {profile.maxStreak}
@@ -66,7 +66,7 @@ export function AnalyticsPanel({ profile }: { profile: AppProfile }) {
       </div>
 
       <div className="flex-1 min-h-[250px] w-full bg-background/50 rounded-xl border p-4 sm:p-6 flex flex-col">
-        <h3 className="text-sm font-medium mb-4">Performance Trends</h3>
+        <h3 className="text-sm font-medium mb-4">performance</h3>
         <div className="flex-1 min-h-0 w-full relative">
           {chartData.length > 0 ? (
             <ChartContainer config={chartConfig} className="absolute inset-0 h-full w-full">

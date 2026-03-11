@@ -282,7 +282,6 @@ export function PracticePanel({
           )}
         >
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[11px] tracking-[0.18em] text-muted-foreground uppercase">current syllable</p>
             <div className="flex items-center gap-2">
               {showWrongInputIndicator ? <span className="text-[11px] text-destructive">Wrong key</span> : null}
               <p className="text-[11px] text-muted-foreground">
