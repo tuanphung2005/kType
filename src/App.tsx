@@ -191,6 +191,7 @@ function App() {
   const handleSubmit = React.useEffectEvent(() => {
     const trimmedDraft = typedDraft.trim()
     if (!trimmedDraft) {
+      void loadNextLesson(currentLesson.id)
       return
     }
 
@@ -222,9 +223,7 @@ function App() {
     typingStartTimeRef.current = null
     typingErrorsRef.current = 0
 
-    if (isComplete) {
-      void loadNextLesson(currentLesson.id)
-    }
+    void loadNextLesson(currentLesson.id)
 
     requestAnimationFrame(() => {
       focusCapture()
@@ -233,20 +232,19 @@ function App() {
 
   React.useEffect(() => {
     void loadNextLesson(initialLessonIdRef.current ?? undefined)
-  }, [])
+  }, [loadNextLesson])
 
   React.useEffect(() => {
     focusCapture()
   }, [currentLesson.id])
 
-  // Aggressive auto-focus: any keypress when not on a button refocuses the capture input
   React.useEffect(() => {
     const handleWindowKeyDown = (event: KeyboardEvent) => {
       const target = event.target
       if (target === captureInputRef.current) return
       if (target instanceof HTMLElement && target.closest("button")) return
 
-      // Let Tab work naturally
+
       if (event.key === "Tab") return
 
       focusCapture()
@@ -329,17 +327,31 @@ function App() {
           </div>
           <div className="flex items-center gap-1">
             {isTauri() ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 rounded-full px-3 text-xs"
-                onClick={() => setCurrentView(v => v === "analytics" ? "practice" : "analytics")}
-              >
-                {currentView === "analytics" ?
-                  (<><ArrowLeft />back to practice</>) :
-                  (<><ChartArea />analytics</>)
-                }
-              </Button>
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 rounded-full px-3 text-xs"
+                  onClick={() => setCurrentView(v => v === "analytics" ? "practice" : "analytics")}
+                >
+                  {currentView === "analytics" ?
+                    (<><ArrowLeft />back to practice</>) :
+                    (<><ChartArea />analytics</>)
+                  }
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 rounded-full px-2 text-xs"
+                  onClick={() => setCurrentView((v) => (v === "settings" ? "practice" : "settings"))}
+                >
+                  {currentView === "settings" ? (
+                    <><ArrowLeft className="size-3 lg:mr-1" />back</>
+                  ) : (
+                    <><Settings className="size-3 lg:mr-1" />settings</>
+                  )}
+                </Button>
+              </>
             ) : (
               <Button
                 variant="default"
@@ -353,18 +365,7 @@ function App() {
                 </a>
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 rounded-full px-2 text-xs"
-              onClick={() => setCurrentView((v) => (v === "settings" ? "practice" : "settings"))}
-            >
-              {currentView === "settings" ? (
-                <><ArrowLeft className="size-3 lg:mr-1" />back</>
-              ) : (
-                <><Settings className="size-3 lg:mr-1" />settings</>
-              )}
-            </Button>
+            
             <Button
               variant="ghost"
               size="sm"
