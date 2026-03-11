@@ -8,12 +8,47 @@ export function AnalyticsPanel({ profile }: { profile: AppProfile }) {
   const avgWpm = recent.length ? Math.round(recent.reduce((a, b) => a + b.wpm, 0) / recent.length) : 0
   const avgAcc = recent.length ? Math.round(recent.reduce((a, b) => a + b.accuracy, 0) / recent.length) : 0
 
-  const chartData = profile.sessionHistory.map((s, i) => ({
-    session: i + 1,
-    wpm: s.wpm,
-    accuracy: s.accuracy,
-    date: new Date(s.timestamp).toLocaleDateString()
-  }))
+  // Group history by date
+  const dailyStatsMap = new Map<string, { wpmSum: number, accSum: number, attempts: number }>()
+  
+  profile.sessionHistory.forEach(s => {
+    const dateStr = new Date(s.timestamp).toLocaleDateString()
+    const current = dailyStatsMap.get(dateStr) || { wpmSum: 0, accSum: 0, attempts: 0 }
+    
+    current.wpmSum += s.wpm
+    current.accSum += s.accuracy
+    current.attempts += 1
+    
+    dailyStatsMap.set(dateStr, current)
+  })
+
+  // Build chart data
+  const chartData = Array.from(dailyStatsMap.entries())
+    .map(([dateStr, stats]) => {
+      // Find the corresponding datekey for profile.daily (YYYY-MM-DD or similar)
+      // Since dateStr is localized, we just do a best-effort match, or better yet, since formatLocalDateKey was used for profile.daily:
+    // const dateParts = dateStr.split(/[/.-]/) // very dirty but works for fallback
+      
+      // Let's iterate profile.daily and find the matching day to get exact XP.
+      // Easiest is to just re-create dateKey format exactly like `formatLocalDateKey`
+      const dateObj = new Date(dateStr)
+      const year = dateObj.getFullYear()
+      const month = String(dateObj.getMonth() + 1).padStart(2, "0")
+      const day = String(dateObj.getDate()).padStart(2, "0")
+      const dateKey = `${year}-${month}-${day}`
+      
+      const dailyRecord = profile.daily[dateKey]
+
+      return {
+        date: dateStr,
+        timestamp: dateObj.getTime(), // For sorting
+        wpm: Math.round(stats.wpmSum / stats.attempts),
+        accuracy: Math.round(stats.accSum / stats.attempts),
+        attempts: stats.attempts,
+        xp: dailyRecord?.xp || 0
+      }
+    })
+    .sort((a, b) => a.timestamp - b.timestamp)
 
   const chartConfig = {
     wpm: {
@@ -24,6 +59,14 @@ export function AnalyticsPanel({ profile }: { profile: AppProfile }) {
       label: "Accuracy %",
       color: "var(--color-chart-2)",
     },
+    attempts: {
+      label: "Attempts",
+      color: "var(--color-chart-3)",
+    },
+    xp: {
+      label: "XP Gained",
+      color: "var(--color-chart-4)",
+    }
   } satisfies ChartConfig
 
   return (
@@ -73,7 +116,7 @@ export function AnalyticsPanel({ profile }: { profile: AppProfile }) {
               <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis 
-                  dataKey="session" 
+                  dataKey="date" 
                   tickLine={false} 
                   axisLine={false} 
                   tickMargin={8}
@@ -90,12 +133,12 @@ export function AnalyticsPanel({ profile }: { profile: AppProfile }) {
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
-                  domain={[0, 100]}
                 />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <ChartLegend content={<ChartLegendContent />} />
                 <Line
                   yAxisId="left"
+                  name="WPM"
                   type="monotone"
                   dataKey="wpm"
                   stroke="var(--color-wpm)"
@@ -104,9 +147,28 @@ export function AnalyticsPanel({ profile }: { profile: AppProfile }) {
                 />
                 <Line
                   yAxisId="right"
+                  name="Accuracy %"
                   type="monotone"
                   dataKey="accuracy"
                   stroke="var(--color-accuracy)"
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Line
+                  yAxisId="left"
+                  name="Attempts"
+                  type="monotone"
+                  dataKey="attempts"
+                  stroke="var(--color-attempts)"
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Line
+                  yAxisId="right"
+                  name="XP Gained"
+                  type="monotone"
+                  dataKey="xp"
+                  stroke="var(--color-xp)"
                   strokeWidth={2}
                   dot={false}
                 />

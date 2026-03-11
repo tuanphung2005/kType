@@ -13,6 +13,10 @@ export type SessionRecord = {
 
 export type AppProfile = {
   version: 2
+  preferences: {
+    theme: "zinc" | "rose" | "blue"
+    reducedMotion: boolean
+  }
   xp: number
   streak: number
   maxStreak: number
@@ -45,6 +49,10 @@ export function isTauri() {
 export function createInitialProfile(): AppProfile {
   return {
     version: 2,
+    preferences: {
+      theme: "zinc",
+      reducedMotion: false,
+    },
     xp: 0,
     streak: 0,
     maxStreak: 0,
@@ -60,16 +68,23 @@ export function createInitialProfile(): AppProfile {
 
 function migrateProfile(parsedValue: unknown): AppProfile {
   const profile = parsedValue as Record<string, unknown>
+  const preferences = (profile.preferences as AppProfile["preferences"]) ?? {
+    theme: "zinc",
+    reducedMotion: false,
+  }
+
   if (profile.version === 1) {
     return {
       ...createInitialProfile(),
       ...profile,
       version: 2,
+      preferences,
       maxStreak: Number(profile.streak) || 0,
       sessionHistory: [],
     } as AppProfile
   }
-  return { ...createInitialProfile(), ...profile } as AppProfile
+  
+  return { ...createInitialProfile(), ...profile, preferences } as AppProfile
 }
 
 export async function loadProfile(): Promise<AppProfile> {

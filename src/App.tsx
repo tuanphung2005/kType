@@ -1,11 +1,13 @@
 import * as React from "react"
-import { Flame, Shuffle, Download, ChartArea, ArrowLeft } from "lucide-react"
+import { Flame, Shuffle, Download, ChartArea, ArrowLeft, Settings } from "lucide-react"
+
+import { cn } from "@/lib/utils"
 
 import { AnalyticsPanel } from "@/components/analytics-panel"
 import { PracticePanel } from "@/components/practice-panel"
+import { SettingsPanel } from "@/components/settings-panel"
 import { Button } from "@/components/ui/button"
-import { createGeneratedLesson } from "@/data/lessons"
-import { fetchDictionaryLesson } from "@/lib/dictionary"
+import { generateDictionarySentenceLesson } from "@/lib/dictionary"
 import {
   createInitialProfile,
   formatLocalDateKey,
@@ -61,14 +63,14 @@ function getCorrectPrefixLength(target: string, draft: string) {
 
 function App() {
   const captureInputRef = React.useRef<HTMLInputElement>(null)
-  const lessonRequestIdRef = React.useRef(0)
   const initialLessonIdRef = React.useRef<string | null>(null)
   const wrongInputTimeoutRef = React.useRef<number | null>(null)
   const typingStartTimeRef = React.useRef<number | null>(null)
   const typingErrorsRef = React.useRef(0)
+  const [isProfileLoaded, setIsProfileLoaded] = React.useState(false)
   const [profile, setProfile] = React.useState(createInitialProfile)
-  const [currentView, setCurrentView] = React.useState<"practice" | "analytics">("practice")
-  const [currentLesson, setCurrentLesson] = React.useState(() => createGeneratedLesson())
+  const [currentView, setCurrentView] = React.useState<"practice" | "analytics" | "settings">("practice")
+  const [currentLesson, setCurrentLesson] = React.useState(() => generateDictionarySentenceLesson())
   const [rawDraft, setRawDraft] = React.useState("")
   const [isCaptureActive, setIsCaptureActive] = React.useState(false)
   const [isLoadingLesson, setIsLoadingLesson] = React.useState(false)
@@ -104,12 +106,17 @@ function App() {
   }
 
   React.useEffect(() => {
-    loadProfile().then(setProfile)
+    loadProfile().then((loadedProfile) => {
+      setProfile(loadedProfile)
+      setIsProfileLoaded(true)
+    })
   }, [])
 
   React.useEffect(() => {
-    void saveProfile(profile)
-  }, [profile])
+    if (isProfileLoaded) {
+      void saveProfile(profile)
+    }
+  }, [profile, isProfileLoaded])
 
   React.useEffect(() => {
     return () => {
@@ -119,24 +126,15 @@ function App() {
     }
   }, [])
 
-  const loadNextLesson = React.useEffectEvent(async (previousId?: string) => {
-    const requestId = lessonRequestIdRef.current + 1
-    lessonRequestIdRef.current = requestId
+  const loadNextLesson = React.useCallback(async (previousId?: string) => {
     setIsLoadingLesson(true)
-
     try {
-      const nextLesson = await fetchDictionaryLesson(previousId)
-      if (lessonRequestIdRef.current !== requestId) {
-        return
-      }
-
-      setCurrentLesson(nextLesson ?? createGeneratedLesson(previousId))
+      const nextLesson = generateDictionarySentenceLesson(previousId)
+      setCurrentLesson(nextLesson)
     } finally {
-      if (lessonRequestIdRef.current === requestId) {
-        setIsLoadingLesson(false)
-      }
+      setIsLoadingLesson(false)
     }
-  })
+  }, [])
 
   const focusCapture = React.useEffectEvent(() => {
     captureInputRef.current?.focus()
@@ -314,7 +312,10 @@ function App() {
 
 
   return (
-    <main className="h-svh overflow-hidden">
+    <main className={cn("h-svh overflow-hidden transition-colors duration-300", 
+      profile.preferences?.theme === "rose" && "theme-rose",
+      profile.preferences?.theme === "blue" && "theme-blue"
+    )}>
       <div className="mx-auto flex h-svh w-full max-w-5xl flex-col gap-3 px-4 py-3 sm:px-6 sm:py-4">
         <header className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3">
@@ -332,11 +333,11 @@ function App() {
                 variant="ghost"
                 size="sm"
                 className="h-7 rounded-full px-3 text-xs"
-                onClick={() => setCurrentView(v => v === "practice" ? "analytics" : "practice")}
+                onClick={() => setCurrentView(v => v === "analytics" ? "practice" : "analytics")}
               >
-                {currentView === "practice" ?
-                  (<><ChartArea />analytics</>) :
-                  (<><ArrowLeft />back to practice</>)
+                {currentView === "analytics" ?
+                  (<><ArrowLeft />back to practice</>) :
+                  (<><ChartArea />analytics</>)
                 }
               </Button>
             ) : (
@@ -356,6 +357,18 @@ function App() {
               variant="ghost"
               size="sm"
               className="h-7 rounded-full px-2 text-xs"
+              onClick={() => setCurrentView((v) => (v === "settings" ? "practice" : "settings"))}
+            >
+              {currentView === "settings" ? (
+                <><ArrowLeft className="size-3 lg:mr-1" />back</>
+              ) : (
+                <><Settings className="size-3 lg:mr-1" />settings</>
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 rounded-full px-2 text-xs"
               onClick={handleNextLesson}
               disabled={isLoadingLesson}
             >
@@ -368,6 +381,11 @@ function App() {
         <section className="flex min-h-0 flex-1 flex-col">
           {currentView === "analytics" ? (
             <AnalyticsPanel profile={profile} />
+          ) : currentView === "settings" ? (
+            <SettingsPanel 
+              profile={profile} 
+              onUpdatePreferences={(prefs) => setProfile(p => ({ ...p, preferences: prefs }))}
+            />
           ) : (
             <PracticePanel
               captureRef={captureInputRef}

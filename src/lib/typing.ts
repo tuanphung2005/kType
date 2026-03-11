@@ -607,3 +607,16 @@ export function getLevelDetails(xp: number) {
     progress,
   }
 }
+
+export function getNextExpectedKey(targetKeyGuide: string, inputValue: string) {
+  const targetChars = Array.from(targetKeyGuide)
+  const typedChars = Array.from(inputValue)
+
+  for (let index = 0; index < targetChars.length; index += 1) {
+    if (typedChars[index] !== targetChars[index]) {
+      return /\s/.test(targetChars[index]) ? null : targetChars[index]
+    }
+  }
+
+  return null
+}

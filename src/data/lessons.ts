@@ -72,15 +72,25 @@ function hashText(text: string) {
 }
 
 function buildGeneratedPhrase() {
-  const opener = pickOne(OPENERS)
-  const modifier = pickOne(MODIFIERS)
-  const object = pickOne(OBJECTS)
-  const verb = pickOne(VERBS)
+  const phraseCount = Math.floor(Math.random() * 3) + 2 // 2 to 4 sentences
 
-  const text = [opener.ko, modifier.ko, object.ko, verb.ko].join(" ")
-  const translation = [opener.en, modifier.en, object.en, verb.en].join(" ")
+  const koParts: string[] = []
+  const enParts: string[] = []
 
-  return { text, translation }
+  for (let i = 0; i < phraseCount; i++) {
+    const opener = pickOne(OPENERS)
+    const modifier = pickOne(MODIFIERS)
+    const object = pickOne(OBJECTS)
+    const verb = pickOne(VERBS)
+
+    koParts.push([opener.ko, modifier.ko, object.ko, verb.ko].join(" "))
+    enParts.push([opener.en, modifier.en, object.en, verb.en].join(" "))
+  }
+
+  return { 
+    text: koParts.join(" "), 
+    translation: enParts.join(" ") 
+  }
 }
 
 export function createGeneratedLesson(previousId?: string): Lesson {

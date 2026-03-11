@@ -1,14 +1,9 @@
 import type { Lesson } from "@/data/lessons"
 
-const LESSON_CACHE_KEY = "ktype.dictionary.lesson-cache"
-const MAX_CACHE_SIZE = 96
-
 type LocalWordEntry = {
   ko: string
   en: string
 }
-
-let lessonCache: Lesson[] | null = null
 
 const WORD_BANK: LocalWordEntry[] = [
   { ko: "가게", en: "shop" },
@@ -199,9 +194,7 @@ const WORD_BANK: LocalWordEntry[] = [
   { ko: "희망", en: "hope" },
 ]
 
-function pickOne<T>(items: T[]) {
-  return items[Math.floor(Math.random() * items.length)]
-}
+
 
 function shuffle<T>(items: T[]) {
   const clone = [...items]
@@ -226,104 +219,49 @@ function hashText(text: string) {
   return hash.toString(36)
 }
 
-function normalizeLessonText(text: string) {
-  return text.replace(/\s+/g, " ").trim()
-}
-
-function buildLesson({
-  text,
-  translation,
-}: {
-  text: string
-  translation: string
-}): Lesson | null {
-  const normalized = normalizeLessonText(text)
-  if (!normalized) {
-    return null
-  }
-
-  return {
-    id: `local-${hashText(`${normalized}-${translation}`)}`,
-    title: "Word",
-    category: "Random Words",
-    focus: "broad vocabulary pool",
-    text: normalized,
-    translation,
-    romanization: "",
-    xp: Math.max(12, Math.min(54, Array.from(normalized).length * 3)),
-  }
-}
-
-function buildWordLessons() {
-  return WORD_BANK.map((entry) =>
-    buildLesson({
-      text: entry.ko,
-      translation: entry.en,
-    })
-  ).filter((lesson): lesson is Lesson => lesson !== null)
-}
-
-const LOCAL_LESSON_POOL = buildWordLessons()
-
-function getStoredLessonCache() {
-  if (lessonCache) {
-    return lessonCache
-  }
-
-  if (typeof window === "undefined") {
-    lessonCache = []
-    return lessonCache
-  }
-
-  try {
-    const raw = window.sessionStorage.getItem(LESSON_CACHE_KEY)
-    lessonCache = raw ? (JSON.parse(raw) as Lesson[]) : []
-  } catch {
-    lessonCache = []
-  }
-
-  return lessonCache
-}
-
-function saveLessonCache() {
-  if (typeof window === "undefined" || !lessonCache) {
-    return
-  }
-
-  window.sessionStorage.setItem(LESSON_CACHE_KEY, JSON.stringify(lessonCache.slice(0, MAX_CACHE_SIZE)))
-}
-
-function refillLessonCache(previousId?: string) {
-  const cache = getStoredLessonCache()
-  if (cache.length >= 24) {
-    return cache
-  }
-
-  const existingIds = new Set(cache.map((lesson) => lesson.id))
-  const candidates = shuffle(LOCAL_LESSON_POOL).filter(
-    (lesson) => lesson.id !== previousId && !existingIds.has(lesson.id)
-  )
-
-  lessonCache = [...cache, ...candidates.slice(0, MAX_CACHE_SIZE - cache.length)]
-  saveLessonCache()
-  return lessonCache
-}
-
 export function isDictionaryConfigured() {
   return true
 }
 
-export async function fetchDictionaryLesson(previousId?: string): Promise<Lesson | null> {
-  const cache = refillLessonCache(previousId)
-  const availableLessons = cache.filter((lesson) => lesson.id !== previousId)
+export function generateDictionarySentenceLesson(previousId?: string): Lesson {
+  const wordCount = Math.floor(Math.random() * 3) + 4
 
-  if (availableLessons.length === 0) {
-    return pickOne(LOCAL_LESSON_POOL)
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const shuffled = shuffle(WORD_BANK)
+    const selectedWords = shuffled.slice(0, wordCount)
+    
+    const koText = selectedWords.map(w => w.ko).join(" ")
+    const enText = selectedWords.map(w => w.en).join(" ")
+    
+    const id = `dict-${hashText(koText)}`
+    
+    if (id !== previousId) {
+      return {
+        id,
+        title: "Random Words",
+        category: "Dictionary",
+        focus: "vocabulary flow",
+        text: koText,
+        translation: enText,
+        romanization: "",
+        xp: Math.max(20, Math.min(60, koText.length * 2)),
+      }
+    }
   }
 
-  const nextLesson = pickOne(availableLessons)
-  lessonCache = cache.filter((lesson) => lesson.id !== nextLesson.id)
-  saveLessonCache()
 
-  return nextLesson
+  const fallback = shuffle(WORD_BANK).slice(0, 4)
+  const koText = fallback.map(w => w.ko).join(" ")
+  const enText = fallback.map(w => w.en).join(" ")
+
+  return {
+    id: `dict-${hashText(koText)}-fb`,
+    title: "Random Words",
+    category: "Dictionary",
+    focus: "vocabulary flow",
+    text: koText,
+    translation: enText,
+    romanization: "",
+    xp: 30,
+  }
 }
