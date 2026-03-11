@@ -175,14 +175,14 @@ export function PracticePanel({
   const activeGuideMessage = !showActiveGuide
     ? "Keep typing to see the current syllable guidance."
     : showWrongInputIndicator
-      ? "Wrong key."
+      ? "wrong key."
       : hasInputMismatch
-        ? "Wrong input is ignored. Keep pressing the highlighted key."
+        ? "wrong input is ignored. Keep pressing the highlighted key."
         : nextPendingStroke
-          ? `Next stroke: ${nextPendingStroke.jamo}`
+          ? `next stroke: ${nextPendingStroke.jamo}`
           : activeSyllable.jamo.some((item) => item.state === "incorrect")
-            ? "Current syllable has an incorrect stroke. Fix it before moving on."
-            : "Current syllable complete."
+            ? "current syllable has an incorrect stroke. Fix it before moving on."
+            : "complete."
   const nextExpectedKey = inputMode === "keys" ? getNextExpectedKey(targetKeyGuide, inputValue) : null
 
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {

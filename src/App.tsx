@@ -1,17 +1,18 @@
 import * as React from "react"
-import { Flame, RotateCcw, Shuffle } from "lucide-react"
+import { Flame, Shuffle, Download } from "lucide-react"
 
+import { AnalyticsPanel } from "@/components/analytics-panel"
 import { PracticePanel } from "@/components/practice-panel"
 import { Button } from "@/components/ui/button"
 import { createGeneratedLesson } from "@/data/lessons"
 import { fetchDictionaryLesson } from "@/lib/dictionary"
 import {
-  clearProfile,
   createInitialProfile,
   formatLocalDateKey,
   loadProfile,
   recordPractice,
   saveProfile,
+  isTauri,
 } from "@/lib/storage"
 import {
   buildJamoFeedback,
@@ -19,7 +20,6 @@ import {
   convertDubeolsikKeysToHangul,
   getDubeolsikKeySequence,
   getLevelDetails,
-  getTypingAccuracy,
   getTypingProgress,
   isExactLessonMatch,
   containsHangul,
@@ -64,7 +64,10 @@ function App() {
   const lessonRequestIdRef = React.useRef(0)
   const initialLessonIdRef = React.useRef<string | null>(null)
   const wrongInputTimeoutRef = React.useRef<number | null>(null)
-  const [profile, setProfile] = React.useState(loadProfile)
+  const typingStartTimeRef = React.useRef<number | null>(null)
+  const typingErrorsRef = React.useRef(0)
+  const [profile, setProfile] = React.useState(createInitialProfile)
+  const [currentView, setCurrentView] = React.useState<"practice" | "analytics">("practice")
   const [currentLesson, setCurrentLesson] = React.useState(() => createGeneratedLesson())
   const [rawDraft, setRawDraft] = React.useState("")
   const [isCaptureActive, setIsCaptureActive] = React.useState(false)
@@ -75,9 +78,14 @@ function App() {
   const typedDraft =
     inputMode === "keys" ? convertDubeolsikKeysToHangul(rawDraft) : rawDraft
   const todayKey = formatLocalDateKey()
-  const accuracy = getTypingAccuracy(currentLesson.text, typedDraft)
   const progress = getTypingProgress(currentLesson.text, typedDraft)
   const isComplete = isExactLessonMatch(currentLesson.text, typedDraft)
+  
+  // Real accuracy = Max(0, 100 - (errors / totalChars * 100))
+  const targetCharsLength = Array.from(currentLesson.text).length
+  const rawAccuracy = targetCharsLength > 0 ? 100 - (typingErrorsRef.current / targetCharsLength) * 100 : 100
+  const accuracy = Math.max(0, Math.round(rawAccuracy))
+  
   const jamoFeedback = buildJamoFeedback(currentLesson.text, typedDraft)
   const potentialXp = calculateEarnedXp({
     baseXp: currentLesson.xp,
@@ -96,7 +104,11 @@ function App() {
   }
 
   React.useEffect(() => {
-    saveProfile(profile)
+    loadProfile().then(setProfile)
+  }, [])
+
+  React.useEffect(() => {
+    void saveProfile(profile)
   }, [profile])
 
   React.useEffect(() => {
@@ -144,6 +156,10 @@ function App() {
   })
 
   const handleDraftChange = React.useEffectEvent((nextRawDraft: string) => {
+    if (typingStartTimeRef.current === null && nextRawDraft.length > 0) {
+      typingStartTimeRef.current = Date.now()
+    }
+
     const nextInputMode = containsHangul(nextRawDraft) ? "hangul" : "keys"
     const comparisonTarget = nextInputMode === "keys" ? targetKeyGuide : currentLesson.text
     const previousCommittedPrefixLength = getCorrectPrefixLength(comparisonTarget, rawDraft)
@@ -167,6 +183,7 @@ function App() {
       constrainedDraft !== nextRawDraft
 
     if (wasRejected) {
+      typingErrorsRef.current += 1
       triggerWrongInputIndicator()
     }
 
@@ -186,6 +203,11 @@ function App() {
       isFirstCompletionToday: false,
     })
 
+    const elapsedMinutes = typingStartTimeRef.current 
+      ? (Date.now() - typingStartTimeRef.current) / 60000 
+      : 0
+    const wpm = elapsedMinutes > 0 ? Math.round((Array.from(trimmedDraft).length / 5) / elapsedMinutes) : 0
+
     const nextProfile = recordPractice(profile, {
       dateKey: todayKey,
       lessonId: currentLesson.id,
@@ -193,11 +215,14 @@ function App() {
       characterCount: Array.from(trimmedDraft).length,
       earnedXp,
       completed: isComplete,
+      wpm,
     })
 
     setProfile(nextProfile)
     setRawDraft("")
     setShowWrongInputIndicator(false)
+    typingStartTimeRef.current = null
+    typingErrorsRef.current = 0
 
     if (isComplete) {
       void loadNextLesson(currentLesson.id)
@@ -256,6 +281,8 @@ function App() {
       if (event.key === "Escape") {
         event.preventDefault()
         setRawDraft("")
+        typingStartTimeRef.current = null
+        typingErrorsRef.current = 0
         return
       }
 
@@ -275,6 +302,8 @@ function App() {
   function handleNextLesson() {
     setRawDraft("")
     setShowWrongInputIndicator(false)
+    typingStartTimeRef.current = null
+    typingErrorsRef.current = 0
     void loadNextLesson(currentLesson.id)
 
     requestAnimationFrame(() => {
@@ -282,24 +311,7 @@ function App() {
     })
   }
 
-  function handleResetProgress() {
-    const confirmed = window.confirm(
-      "Reset all saved typing progress on this device? This cannot be undone."
-    )
 
-    if (!confirmed) {
-      return
-    }
-
-    clearProfile()
-    setProfile(createInitialProfile())
-    setRawDraft("")
-    setShowWrongInputIndicator(false)
-
-    requestAnimationFrame(() => {
-      focusCapture()
-    })
-  }
 
   return (
     <main className="h-svh overflow-hidden">
@@ -307,14 +319,36 @@ function App() {
         <header className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             <span className="text-sm font-semibold tracking-wide">kType</span>
-            <span className="text-xs text-muted-foreground">Lv {level.level}</span>
-            <span className="text-xs text-muted-foreground">{profile.xp} XP</span>
+            <span className="text-xs text-muted-foreground">lvl {level.level}</span>
+            <span className="text-xs text-muted-foreground">{profile.xp} xp</span>
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
               <Flame className="size-3 text-primary" />
               {profile.streak}
             </span>
           </div>
           <div className="flex items-center gap-1">
+            {isTauri() ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 rounded-full px-3 text-xs"
+                onClick={() => setCurrentView(v => v === "practice" ? "analytics" : "practice")}
+              >
+                {currentView === "practice" ? "analytics" : "back to practice"}
+              </Button>
+            ) : (
+              <Button
+                variant="default"
+                size="sm"
+                className="h-7 rounded-full px-3 text-xs bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+                asChild
+              >
+                <a href="https://github.com/tuanphung2005/kType/releases/latest" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
+                  <Download className="size-3" />
+                  download app
+                </a>
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
@@ -323,44 +357,46 @@ function App() {
               disabled={isLoadingLesson}
             >
               <Shuffle className="size-3" />
-              {isLoadingLesson ? "Loading" : "New"}
-            </Button>
-            <Button variant="ghost" size="sm" className="h-7 rounded-full px-2 text-xs" onClick={handleResetProgress}>
-              <RotateCcw className="size-3" />
-              Reset
+              {isLoadingLesson ? "loading" : "new"}
             </Button>
           </div>
         </header>
 
         <section className="flex min-h-0 flex-1 flex-col">
-          <PracticePanel
-            captureRef={captureInputRef}
-            isCaptureActive={isCaptureActive}
-            lesson={currentLesson}
-            inputValue={rawDraft}
-            typedValue={typedDraft}
-            inputMode={inputMode}
-            accuracy={accuracy}
-            progress={progress}
-            feedback={jamoFeedback}
-            potentialXp={potentialXp}
-            isComplete={isComplete}
-            hasInputMismatch={hasInputMismatch}
-            showWrongInputIndicator={showWrongInputIndicator}
-            targetKeyGuide={targetKeyGuide}
-            onActivateCapture={focusCapture}
-            onCaptureBlur={() => setIsCaptureActive(false)}
-            onCaptureFocus={() => setIsCaptureActive(true)}
-            onChange={handleDraftChange}
-            onClear={() => {
-              setRawDraft("")
-              setShowWrongInputIndicator(false)
-              requestAnimationFrame(() => {
-                focusCapture()
-              })
-            }}
-            onSubmit={handleSubmit}
-          />
+          {currentView === "analytics" ? (
+            <AnalyticsPanel profile={profile} />
+          ) : (
+            <PracticePanel
+              captureRef={captureInputRef}
+              isCaptureActive={isCaptureActive}
+              lesson={currentLesson}
+              inputValue={rawDraft}
+              typedValue={typedDraft}
+              inputMode={inputMode}
+              accuracy={accuracy}
+              progress={progress}
+              feedback={jamoFeedback}
+              potentialXp={potentialXp}
+              isComplete={isComplete}
+              hasInputMismatch={hasInputMismatch}
+              showWrongInputIndicator={showWrongInputIndicator}
+              targetKeyGuide={targetKeyGuide}
+              onActivateCapture={focusCapture}
+              onCaptureBlur={() => setIsCaptureActive(false)}
+              onCaptureFocus={() => setIsCaptureActive(true)}
+              onChange={handleDraftChange}
+              onClear={() => {
+                setRawDraft("")
+                setShowWrongInputIndicator(false)
+                typingStartTimeRef.current = null
+                typingErrorsRef.current = 0
+                requestAnimationFrame(() => {
+                  focusCapture()
+                })
+              }}
+              onSubmit={handleSubmit}
+            />
+          )}
         </section>
       </div>
     </main>

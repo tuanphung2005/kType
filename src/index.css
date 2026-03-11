@@ -130,6 +130,18 @@
     @apply font-sans;
   }
 
+  @media (max-height: 700px), (max-width: 640px) {
+    html {
+      font-size: 14px;
+    }
+  }
+
+  @media (max-height: 550px) {
+    html {
+      font-size: 12px;
+    }
+  }
+
   ::selection {
     background: color-mix(in oklch, var(--primary) 22%, transparent);
   }

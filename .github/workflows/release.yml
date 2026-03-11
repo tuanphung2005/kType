@@ -1,0 +1,76 @@
+name: Release kType
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+      
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: setup bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+          
+      - name: setup rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+          
+      - name: install dependencies
+        run: bun install
+        
+      - name: Bump version
+        id: bump_version
+        shell: pwsh
+        run: |
+          # Read current version
+          $pkg = Get-Content package.json | ConvertFrom-Json
+          $versionParts = $pkg.version.Split('.')
+          $newPatch = [int]$versionParts[2] + 1
+          $newVersion = "$($versionParts[0]).$($versionParts[1]).$newPatch"
+          
+          # Update package.json
+          $pkg.version = $newVersion
+          $pkg | ConvertTo-Json -Depth 10 | Set-Content package.json
+          
+          # Update tauri.conf.json
+          $tauri = Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json
+          $tauri.version = $newVersion
+          $tauri | ConvertTo-Json -Depth 10 | Set-Content src-tauri/tauri.conf.json
+          
+          # Update Cargo.toml
+          $cargo = Get-Content src-tauri/Cargo.toml
+          # Replace first occurrence of version in [package] section
+          $cargo = $cargo -replace '(?s)(^\[package\].*?)version = ".*?"', "`$1version = `"$newVersion`""
+          $cargo | Set-Content src-tauri/Cargo.toml
+          
+          echo "NEW_VERSION=$newVersion" >> $env:GITHUB_OUTPUT
+          
+      - name: Commit version bump
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: bump version to ${{ steps.bump_version.outputs.NEW_VERSION }} [skip ci]"
+          git push
+          
+      - name: Build and Release Tauri App
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__
+          releaseName: "kType v__VERSION__"
+          releaseBody: "Automated release of kType v__VERSION__."
+          releaseDraft: false
+          prerelease: false
+          args: --target x86_64-pc-windows-msvc
